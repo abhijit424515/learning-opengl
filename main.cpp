@@ -1,25 +1,44 @@
-#define STBI_MSC_SECURE_CRT
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "headers/stb_image_write.h"
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <string>
 #include <iostream>
 
-void save_screenshot(GLFWwindow *window, int &width, int &height) {
-  	glfwGetFramebufferSize(window, &width, &height);
-  	unsigned char *pixels = new unsigned char[3 * width * height];
-  	glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+static uint compile_shader(unsigned int type, const std::string& source) {
+	uint id = glCreateShader(type);
+	const char *src = source.c_str();
+	glShaderSource(id, 1, &src, nullptr);
+	glCompileShader(id);
 
-	for (int y = 0; y < height / 2; ++y) {
-        for (int x = 0; x < width * 3; ++x) {
-            std::swap(pixels[y * width * 3 + x], pixels[(height - 1 - y) * width * 3 + x]);
-        }
-    }
+	int result;
+	glGetShaderiv(id, GL_COMPILE_STATUS, &result);
+	if (result == GL_FALSE) {
+		int length;
+		glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
+		char message[length];
+		glGetShaderInfoLog(id, length, &length, message);
+		std::cout << "Failed to compile " << (type == GL_VERTEX_SHADER ? "vertex" : "fragment") << " shader!" << std::endl;
+		std::cout << message << std::endl;
+		glDeleteShader(id);
+		return 0;
+	}
 
-  	std::string filename = "output/screenshot.png";
-  	stbi_write_png(filename.c_str(), width, height, 3, pixels, 0);
-  	delete[] pixels;
+	return id;
+}
+
+static uint create_shader(const std::string &vertex_shader, const std::string &fragment_shader) {
+	uint program = glCreateProgram();
+	uint vs = compile_shader(GL_VERTEX_SHADER, vertex_shader);
+	uint fs = compile_shader(GL_FRAGMENT_SHADER, fragment_shader);
+
+	glAttachShader(program, vs);
+	glAttachShader(program, fs);
+	glLinkProgram(program);
+	glValidateProgram(program);
+
+	glDeleteShader(vs);
+	glDeleteShader(fs);
+
+	return program;
 }
 
 int main(void) {
@@ -41,16 +60,49 @@ int main(void) {
 	}
 	std::cout << glGetString(GL_VERSION) << std::endl;
 
+	// DATA
+
+	float positions[6] = {
+		-0.5f, -0.5f,
+		0.0f, 0.5f,
+		0.5f, -0.5f
+	};
+
+	// BUFFERS
+
+	uint buffer;
+	glGenBuffers(1, &buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, buffer);
+	glBufferData(GL_ARRAY_BUFFER, 6*sizeof(float), (void*)positions, GL_STATIC_DRAW);
+
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2*sizeof(float), 0);
+
+	std::string vs = R"(
+		#version 330 core
+		layout(location = 0) in vec4 position;
+
+		void main() {
+			gl_Position = position;
+		}
+	)";
+	std::string fs = R"(
+		#version 330 core
+		layout(location = 0) out vec4 color;
+
+		void main() {
+			color = vec4(1.0, 0.0, 0.0, 1.0);
+		}
+	)";
+	uint shader = create_shader(vs, fs);
+	glUseProgram(shader);
+
 	while (!glfwWindowShouldClose(window)) {
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		// START
 
-		glBegin(GL_TRIANGLES);
-		glVertex2f(-0.5f, -0.5f);
-		glVertex2f(0.0f, 0.5f);
-		glVertex2f(0.5f, -0.5f);
-		glEnd();
+		glDrawArrays(GL_TRIANGLES, 0, 3);
 
 		// END
 
@@ -59,5 +111,6 @@ int main(void) {
 	}
 
 	// save_screenshot(window, width, height);
+	glDeleteProgram(shader);
 	glfwTerminate();
 }
