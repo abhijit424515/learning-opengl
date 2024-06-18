@@ -2,6 +2,38 @@
 #include <GLFW/glfw3.h>
 #include <string>
 #include <iostream>
+#include <fstream>
+#include <sstream>
+
+struct ShaderProgramSource {
+	std::string vs;
+	std::string fs;
+};
+
+enum ShaderType {
+	NONE = -1, 
+	VERTEX = 0, 
+	FRAGMENT = 1,
+};
+
+static ShaderProgramSource parse_shader(const std::string& file) {
+	std::stringstream ss[2];
+	ShaderType type = ShaderType::NONE;
+	
+	std::ifstream stream(file);
+	std::string line;
+	while (std::getline(stream, line)) {
+		if (line.find("#shader") != std::string::npos) {
+			if (line.find("vertex") != std::string::npos) 
+				type = ShaderType::VERTEX;
+			else if (line.find("fragment") != std::string::npos)
+				type = ShaderType::FRAGMENT;
+		} else
+			ss[(int)type] << line << '\n';
+	}
+
+	return { ss[0].str(), ss[1].str() };
+}
 
 static uint compile_shader(unsigned int type, const std::string& source) {
 	uint id = glCreateShader(type);
@@ -78,23 +110,10 @@ int main(void) {
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2*sizeof(float), 0);
 
-	std::string vs = R"(
-		#version 330 core
-		layout(location = 0) in vec4 position;
+	// SHADERS
 
-		void main() {
-			gl_Position = position;
-		}
-	)";
-	std::string fs = R"(
-		#version 330 core
-		layout(location = 0) out vec4 color;
-
-		void main() {
-			color = vec4(1.0, 0.0, 0.0, 1.0);
-		}
-	)";
-	uint shader = create_shader(vs, fs);
+	ShaderProgramSource source = parse_shader("./shaders/basic.shader");
+	uint shader = create_shader(source.vs, source.fs);
 	glUseProgram(shader);
 
 	while (!glfwWindowShouldClose(window)) {
