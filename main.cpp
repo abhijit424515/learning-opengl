@@ -79,7 +79,7 @@ int main(void) {
 
   	int width = 640, height = 480;
 
-  	GLFWwindow *window = glfwCreateWindow(width, height, "Hello World", NULL, NULL);
+  	GLFWwindow *window = glfwCreateWindow(width, height, "learning_opengl", NULL, NULL);
 	if (!window) {
 		glfwTerminate();
 		return -1;
@@ -94,21 +94,32 @@ int main(void) {
 
 	// DATA
 
-	float positions[6] = {
+	float vertices[] = {
 		-0.5f, -0.5f,
-		0.0f, 0.5f,
-		0.5f, -0.5f
+		0.5f, -0.5f,
+		0.5f, 0.5f,
+		-0.5f, 0.5f,
+	};
+
+	uint indices[] = {
+		0, 1, 2,
+		2, 3, 0,
 	};
 
 	// BUFFERS
 
-	uint buffer;
-	glGenBuffers(1, &buffer);
-	glBindBuffer(GL_ARRAY_BUFFER, buffer);
-	glBufferData(GL_ARRAY_BUFFER, 6*sizeof(float), (void*)positions, GL_STATIC_DRAW);
+	uint vbo;
+	glGenBuffers(1, &vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBufferData(GL_ARRAY_BUFFER, 8*sizeof(float), (void*)vertices, GL_STATIC_DRAW);
 
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2*sizeof(float), 0);
+
+	uint ibo;
+	glGenBuffers(1, &ibo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6*sizeof(uint), (void*)indices, GL_STATIC_DRAW);
 
 	// SHADERS
 
@@ -121,7 +132,7 @@ int main(void) {
 
 		// START
 
-		glDrawArrays(GL_TRIANGLES, 0, 3);
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
 
 		// END
 
