@@ -1,146 +1,50 @@
-#include <GL/glew.h>
+#include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <string>
 #include <iostream>
-#include <fstream>
-#include <sstream>
 
-struct ShaderProgramSource {
-	std::string vs;
-	std::string fs;
-};
-
-enum ShaderType {
-	NONE = -1, 
-	VERTEX = 0, 
-	FRAGMENT = 1,
-};
-
-static ShaderProgramSource parse_shader(const std::string& file) {
-	std::stringstream ss[2];
-	ShaderType type = ShaderType::NONE;
-	
-	std::ifstream stream(file);
-	std::string line;
-	while (std::getline(stream, line)) {
-		if (line.find("#shader") != std::string::npos) {
-			if (line.find("vertex") != std::string::npos) 
-				type = ShaderType::VERTEX;
-			else if (line.find("fragment") != std::string::npos)
-				type = ShaderType::FRAGMENT;
-		} else
-			ss[(int)type] << line << '\n';
-	}
-
-	return { ss[0].str(), ss[1].str() };
+void framebuffer_size_callback(GLFWwindow *window, int w, int h) {
+	glViewport(0, 0, w, h);
 }
 
-static uint compile_shader(unsigned int type, const std::string& source) {
-	uint id = glCreateShader(type);
-	const char *src = source.c_str();
-	glShaderSource(id, 1, &src, nullptr);
-	glCompileShader(id);
-
-	int result;
-	glGetShaderiv(id, GL_COMPILE_STATUS, &result);
-	if (result == GL_FALSE) {
-		int length;
-		glGetShaderiv(id, GL_INFO_LOG_LENGTH, &length);
-		char message[length];
-		glGetShaderInfoLog(id, length, &length, message);
-		std::cout << "Failed to compile " << (type == GL_VERTEX_SHADER ? "vertex" : "fragment") << " shader!" << std::endl;
-		std::cout << message << std::endl;
-		glDeleteShader(id);
-		return 0;
-	}
-
-	return id;
+void process_input(GLFWwindow *window) {
+	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+		glfwSetWindowShouldClose(window, 1);
 }
 
-static uint create_shader(const std::string &vertex_shader, const std::string &fragment_shader) {
-	uint program = glCreateProgram();
-	uint vs = compile_shader(GL_VERTEX_SHADER, vertex_shader);
-	uint fs = compile_shader(GL_FRAGMENT_SHADER, fragment_shader);
+int main() {
+	glfwInit();
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 
-	glAttachShader(program, vs);
-	glAttachShader(program, fs);
-	glLinkProgram(program);
-	glValidateProgram(program);
-
-	glDeleteShader(vs);
-	glDeleteShader(fs);
-
-	return program;
-}
-
-int main(void) {
-	if (!glfwInit())
-		return -1;
-
-  	int width = 640, height = 480;
-
-  	GLFWwindow *window = glfwCreateWindow(width, height, "learning_opengl", NULL, NULL);
+	GLFWwindow *window = glfwCreateWindow(800, 600, "Learning OpenGL", nullptr, nullptr);
 	if (!window) {
+		std::cerr << "[error] Failed to create GLFW window" << std::endl;
 		glfwTerminate();
+		return -1; 
+	}
+	glfwMakeContextCurrent(window);
+
+	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+		std::cerr << "[error] Failed to initialize GLAD" << std::endl;
 		return -1;
 	}
 
-	glfwMakeContextCurrent(window);
-	if (glewInit() != GLEW_OK) {
-		std::cerr << "[Error] glewInit()" << std::endl;
-		exit(1);
-	}
-	std::cout << glGetString(GL_VERSION) << std::endl;
-
-	// DATA
-
-	float vertices[] = {
-		-0.5f, -0.5f,
-		0.5f, -0.5f,
-		0.5f, 0.5f,
-		-0.5f, 0.5f,
-	};
-
-	uint indices[] = {
-		0, 1, 2,
-		2, 3, 0,
-	};
-
-	// BUFFERS
-
-	uint vbo;
-	glGenBuffers(1, &vbo);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glBufferData(GL_ARRAY_BUFFER, 8*sizeof(float), (void*)vertices, GL_STATIC_DRAW);
-
-	glEnableVertexAttribArray(0);
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2*sizeof(float), 0);
-
-	uint ibo;
-	glGenBuffers(1, &ibo);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6*sizeof(uint), (void*)indices, GL_STATIC_DRAW);
-
-	// SHADERS
-
-	ShaderProgramSource source = parse_shader("./shaders/basic.shader");
-	uint shader = create_shader(source.vs, source.fs);
-	glUseProgram(shader);
+	glViewport(0,0,800,600);
+	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
 	while (!glfwWindowShouldClose(window)) {
-		glClear(GL_COLOR_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT); // clear screen
+		process_input(window); // input
 
-		// START
-
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
-
-		// END
+		// render
+		
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
 
-	// save_screenshot(window, width, height);
-	glDeleteProgram(shader);
 	glfwTerminate();
 }
